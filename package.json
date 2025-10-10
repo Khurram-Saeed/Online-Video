@@ -1,0 +1,43 @@
+{
+  "name": "video-downloader-website",
+  "version": "1.0.0",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "nodemon --exec ts-node src/server.ts",
+    "watch": "tsc --watch",
+    "clean": "rimraf dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "video-downloader",
+    "youtube",
+    "instagram",
+    "facebook",
+    "tiktok",
+    "ytdlp",
+    "nodejs",
+    "express"
+  ],
+  "author": "Video Downloader",
+  "license": "MIT",
+  "description": "A web application for downloading videos from YouTube, Instagram, Facebook, and TikTok using ytdlp-nodejs",
+  "dependencies": {
+    "@types/node-fetch": "^2.6.13",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "node-fetch": "^3.3.2",
+    "ytdlp-nodejs": "^2.3.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.5.2",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}
