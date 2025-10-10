@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Downloader - Download YouTube Videos, Shorts & MP3</title>
+    <meta name="description" content="Download YouTube videos, shorts, playlists, and convert to MP3. Multiple format options available.">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="logo">🎥 Video Downloader</h1>
+            <nav>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/youtube" class="active">YouTube</a></li>
+                    <li><a href="/instagram">Instagram</a></li>
+                    <li><a href="/facebook">Facebook</a></li>
+                    <li><a href="/tiktok">TikTok</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="page-header youtube">
+                <div class="platform-icon">📺</div>
+                <h2>YouTube Downloader</h2>
+                <p>Download YouTube videos, shorts, playlists, and convert to MP3</p>
+            </div>
+
+            <div class="download-tabs">
+                <button class="tab-btn active" data-tab="video">Video Download</button>
+                <button class="tab-btn" data-tab="playlist">Playlist</button>
+                <button class="tab-btn" data-tab="shorts">Shorts</button>
+                <button class="tab-btn" data-tab="mp3">MP3 Audio</button>
+            </div>
+
+            <!-- Video Download Tab -->
+            <div class="tab-content active" id="video">
+                <div class="download-form">
+                    <h3>Download YouTube Video</h3>
+                    <form id="youtube-video-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="video-url" 
+                                placeholder="Paste YouTube video URL here (e.g., https://www.youtube.com/watch?v=...)"
+                                required
+                            >
+                            <button type="button" id="get-video-info">Get Info</button>
+                        </div>
+                        
+                        <div id="video-info" class="video-info hidden">
+                            <div class="info-card">
+                                <h4 id="video-title">Video Title</h4>
+                                <p id="video-duration">Duration: --:--</p>
+                                <div class="format-selector">
+                                    <label for="video-format">Select Quality:</label>
+                                    <select id="video-format">
+                                        <option value="best">Best Quality</option>
+                                        <option value="worst">Lowest Quality</option>
+                                        <option value="mp4">MP4 Format</option>
+                                        <option value="webm">WebM Format</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled id="download-video-btn">
+                            Download Video
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Playlist Download Tab -->
+            <div class="tab-content" id="playlist">
+                <div class="download-form">
+                    <h3>Download YouTube Playlist</h3>
+                    <form id="youtube-playlist-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="playlist-url" 
+                                placeholder="Paste YouTube playlist URL here (e.g., https://www.youtube.com/playlist?list=...)"
+                                required
+                            >
+                            <button type="button" id="get-playlist-info">Get Info</button>
+                        </div>
+                        
+                        <div id="playlist-info" class="video-info hidden">
+                            <div class="info-card">
+                                <h4 id="playlist-title">Playlist Title</h4>
+                                <p id="playlist-count">Videos: --</p>
+                                <div class="format-selector">
+                                    <label for="playlist-format">Select Quality for All Videos:</label>
+                                    <select id="playlist-format">
+                                        <option value="best[height<=1080]">1080p (Best)</option>
+                                        <option value="best[height<=720]">720p (HD)</option>
+                                        <option value="best[height<=480]">480p (Standard)</option>
+                                        <option value="best[height<=360]">360p (Low)</option>
+                                        <option value="bestaudio">Audio Only (MP3)</option>
+                                    </select>
+                                </div>
+                                <div id="playlist-videos" class="playlist-videos"></div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- YouTube Shorts Tab -->
+            <div class="tab-content" id="shorts">
+                <div class="download-form">
+                    <h3>Download YouTube Shorts</h3>
+                    <form id="youtube-shorts-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="shorts-url" 
+                                placeholder="Paste YouTube Shorts URL here (e.g., https://www.youtube.com/shorts/...)"
+                                required
+                            >
+                            <button type="button" id="get-shorts-info">Get Info</button>
+                        </div>
+                        
+                        <div id="shorts-info" class="video-info hidden">
+                            <div class="info-card">
+                                <h4 id="shorts-title">Shorts Title</h4>
+                                <p id="shorts-duration">Duration: --:--</p>
+                                <div class="format-selector">
+                                    <label for="shorts-format">Select Quality:</label>
+                                    <select id="shorts-format">
+                                        <option value="best">Best Quality</option>
+                                        <option value="worst">Lowest Quality</option>
+                                        <option value="mp4">MP4 Format</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled id="download-shorts-btn">
+                            Download Shorts
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MP3 Audio Tab -->
+            <div class="tab-content" id="mp3">
+                <div class="download-form">
+                    <h3>Convert YouTube to MP3</h3>
+                    <form id="youtube-mp3-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="mp3-url" 
+                                placeholder="Paste YouTube URL here to convert to MP3"
+                                required
+                            >
+                            <button type="button" id="get-mp3-info">Get Info</button>
+                        </div>
+                        
+                        <div id="mp3-info" class="video-info hidden">
+                            <div class="info-card">
+                                <h4 id="mp3-title">Audio Title</h4>
+                                <p id="mp3-duration">Duration: --:--</p>
+                                <p class="audio-note">🎵 Audio will be extracted at 192K quality</p>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled id="download-mp3-btn">
+                            Download MP3
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="loading-indicator hidden" id="loading">
+                <div class="spinner"></div>
+                <p id="loading-text">Processing your request...</p>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container hidden" id="progress-container">
+                <div class="progress-header">
+                    <span id="progress-text">Downloading...</span>
+                    <span id="progress-percentage">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-details">
+                    <span id="progress-speed"></span>
+                    <span id="progress-eta"></span>
+                </div>
+            </div>
+
+            <div class="youtube-tips">
+                <h3>YouTube Download Tips</h3>
+                <div class="tips-grid">
+                    <div class="tip">
+                        <h4>🎯 Supported URLs</h4>
+                        <p>Regular videos, Shorts, Playlists, and Live streams</p>
+                    </div>
+                    <div class="tip">
+                        <h4>📱 Mobile Support</h4>
+                        <p>Works on mobile browsers and desktop</p>
+                    </div>
+                    <div class="tip">
+                        <h4>🎵 Audio Extraction</h4>
+                        <p>Convert any YouTube video to high-quality MP3</p>
+                    </div>
+                    <div class="tip">
+                        <h4>📋 Playlist Support</h4>
+                        <p>Download entire playlists with one click</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Video Downloader. All rights reserved.</p>
+            <p>Use responsibly and respect content creators' rights.</p>
+        </div>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script>
+        // Initialize YouTube page specific functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeYouTubePage();
+        });
+    </script>
+</body>
+</html>

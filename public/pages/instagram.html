@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Video Downloader - Download Instagram Reels & Stories</title>
+    <meta name="description" content="Download Instagram reels and stories easily. High quality downloads for mobile and desktop.">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="logo">🎥 Video Downloader</h1>
+            <nav>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/youtube">YouTube</a></li>
+                    <li><a href="/instagram" class="active">Instagram</a></li>
+                    <li><a href="/facebook">Facebook</a></li>
+                    <li><a href="/tiktok">TikTok</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="page-header instagram">
+                <div class="platform-icon">📸</div>
+                <h2>Instagram Downloader</h2>
+                <p>Download Instagram reels and stories with high quality</p>
+            </div>
+
+            <div class="download-tabs">
+                <button class="tab-btn active" data-tab="reel">Instagram Reels</button>
+                <button class="tab-btn" data-tab="story">Instagram Stories</button>
+                <button class="tab-btn" data-tab="highlights">Story Highlights</button>
+                <button class="tab-btn" data-tab="profile">Profile Photos</button>
+            </div>
+
+            <!-- Instagram Reels Tab -->
+            <div class="tab-content active" id="reel">
+                <div class="download-form">
+                    <h3>Download Instagram Reel</h3>
+                    <form id="instagram-reel-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="reel-url" 
+                                placeholder="Paste Instagram Reel URL here (e.g., https://www.instagram.com/reel/...)"
+                                required
+                            >
+                            <button type="button" id="get-reel-info">Get Info</button>
+                        </div>
+                        
+                        <div id="reel-info" class="video-info hidden">
+                            <div class="info-card">
+                                <h4 id="reel-title">Instagram Reel</h4>
+                                <p id="reel-uploader">By: --</p>
+                                <p id="reel-duration">Duration: --:--</p>
+                                <div class="format-selector">
+                                    <label for="reel-format">Select Quality:</label>
+                                    <select id="reel-format">
+                                        <option value="best">Best Quality</option>
+                                        <option value="worst">Lowest Quality</option>
+                                        <option value="mp4">MP4 Format</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled id="download-reel-btn">
+                            Download Reel
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Instagram Stories Tab -->
+            <div class="tab-content" id="story">
+                <div class="download-form">
+                    <h3>Download Instagram Story</h3>
+                    <div class="notice">ℹ️ <strong>Note:</strong> Only public Instagram Stories can be downloaded. Private profiles will show an error.</div>
+                    <form id="instagram-story-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="story-url" 
+                                placeholder="Paste Instagram Story URL here (e.g., https://www.instagram.com/stories/username/...)"
+                                required
+                            >
+                            <div class="format-selector">
+                                <label for="story-format">Select Quality:</label>
+                                <select id="story-format">
+                                    <option value="best">Best Quality</option>
+                                    <option value="worst">Lowest Quality</option>
+                                    <option value="mp4">MP4 Format</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="download-story-btn">
+                            Download Story
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Instagram Photos Tab -->
+            <div class="tab-content" id="photo">
+                <div class="download-form">
+                    <h3>Download Instagram Photo</h3>
+                    <form id="instagram-photo-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="photo-url" 
+                                placeholder="Paste Instagram Photo URL here (e.g., https://www.instagram.com/p/...)"
+                                required
+                            >
+                            <button type="button" id="get-photo-info">Get Info</button>
+                        </div>
+                        
+                        <div id="photo-info" class="video-info hidden">
+                            <div class="info-card">
+                                <h4 id="photo-title">Instagram Photo</h4>
+                                <p id="photo-uploader">By: --</p>
+                                <div class="format-selector">
+                                    <label for="photo-format">Select Quality:</label>
+                                    <select id="photo-format">
+                                        <option value="best">Best Quality</option>
+                                        <option value="worst">Lowest Quality</option>
+                                        <option value="jpg">JPG Format</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled id="download-photo-btn">
+                            Download Photo
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Instagram Story Highlights Tab -->
+            <div class="tab-content" id="highlights">
+                <div class="download-form">
+                    <h3>Download Story Highlights</h3>
+                    <div class="notice">ℹ️ <strong>Note:</strong> Only Story Highlights from public profiles can be downloaded. Private profiles will show an error.</div>
+                    <form id="instagram-highlights-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="highlights-url" 
+                                placeholder="Paste Story Highlights URL here (e.g., https://www.instagram.com/stories/highlights/...)"
+                                required
+                            >
+                            <div class="format-selector">
+                                <label for="highlights-format">Select Quality:</label>
+                                <select id="highlights-format">
+                                    <option value="best">Best Quality</option>
+                                    <option value="worst">Lowest Quality</option>
+                                    <option value="mp4">MP4 Format</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="download-highlights-btn">
+                            Download Highlights
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Instagram Profile Photos Tab -->
+            <div class="tab-content" id="profile">
+                <div class="download-form">
+                    <h3>Download Profile Photo</h3>
+                    <div class="notice">ℹ️ <strong>Note:</strong> Profile photos from public Instagram accounts can be downloaded in high resolution.</div>
+                    <form id="instagram-profile-form">
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                id="profile-username" 
+                                placeholder="Enter Instagram username (e.g., username or https://www.instagram.com/username/)"
+                                required
+                            >
+                            <button type="button" id="get-profile-info">Get Info</button>
+                        </div>
+
+                        <div id="profile-info" class="video-info hidden">
+                            <div class="info-card">
+                                <div id="profile-preview"></div>
+                                <h4 id="profile-title">Profile</h4>
+                                <p id="profile-username-display">Username: --</p>
+                                <div id="profile-bio" style="white-space: pre-wrap; margin: 6px 0; color: #333;"></div>
+                                <div class="profile-stats" style="display: flex; gap: 12px; color: #555; font-size: 0.95rem;">
+                                    <span id="profile-follower-count"></span>
+                                    <span id="profile-following-count"></span>
+                                    <span id="profile-posts-count"></span>
+                                </div>
+                                <div id="profile-external-url" style="margin-top: 6px;"></div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="download-profile-btn">
+                            Download Profile Photo
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="loading-indicator hidden" id="loading">
+                <div class="spinner"></div>
+                <p id="loading-text">Processing your request...</p>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container hidden" id="progress-container">
+                <div class="progress-header">
+                    <span id="progress-text">Downloading...</span>
+                    <span id="progress-percentage">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-details">
+                    <span id="progress-speed"></span>
+                    <span id="progress-eta"></span>
+                </div>
+            </div>
+
+            <div class="instagram-tips">
+                <h3>Instagram Download Tips</h3>
+                <div class="tips-grid">
+                    <div class="tip">
+                        <h4>🎯 Supported Content</h4>
+                        <p>Reels, Posts, Photos, and IGTV videos (public accounts only)</p>
+                    </div>
+                    <div class="tip">
+                        <h4>📱 Mobile Optimized</h4>
+                        <p>Perfect for downloading on mobile devices</p>
+                    </div>
+                    <div class="tip">
+                        <h4>🔒 Authentication Free</h4>
+                        <p>No login required - works with public content only</p>
+                    </div>
+                    <div class="tip">
+                        <h4>⚡ Fast Processing</h4>
+                        <p>Quick downloads with high quality preservation</p>
+                    </div>
+                </div>
+
+                <div class="how-to-get-url">
+                    <h4>How to get Instagram URL:</h4>
+                    <ol>
+                        <li>Open Instagram app or website</li>
+                        <li>Navigate to the Reel, Story, or Post</li>
+                        <li>Tap the three dots menu</li>
+                        <li>Select "Copy Link" or "Share"</li>
+                        <li>Paste the URL above</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Video Downloader. All rights reserved.</p>
+            <p>Use responsibly and respect content creators' rights.</p>
+        </div>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script>
+        // Initialize Instagram page specific functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeInstagramPage();
+        });
+    </script>
+</body>
+</html>

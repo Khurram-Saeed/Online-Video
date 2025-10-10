@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Video Downloader - Download TikTok Videos & Audio</title>
+    <meta name="description" content="Download TikTok short and long videos with high quality. Audio extraction support included.">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="logo">🎥 Video Downloader</h1>
+            <nav>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/youtube">YouTube</a></li>
+                    <li><a href="/instagram">Instagram</a></li>
+                    <li><a href="/facebook">Facebook</a></li>
+                    <li><a href="/tiktok" class="active">TikTok</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="page-header tiktok">
+                <div class="platform-icon">🎵</div>
+                <h2>TikTok Downloader</h2>
+                <p>Download TikTok short and long videos with high quality</p>
+            </div>
+
+            <div class="download-tabs">
+                <button class="tab-btn active" data-tab="short">Short Videos</button>
+                <button class="tab-btn" data-tab="long">Long Videos</button>
+                <button class="tab-btn" data-tab="video">Any Video</button>
+                <button class="tab-btn" data-tab="audio">Audio Only</button>
+            </div>
+
+            <!-- TikTok Short Videos Tab -->
+            <div class="tab-content active" id="short">
+                <div class="download-form">
+                    <h3>Download TikTok Short Video</h3>
+                    <form id="tiktok-short-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="short-url" 
+                                placeholder="Paste TikTok Short Video URL here (e.g., https://www.tiktok.com/@user/video/...)"
+                                required
+                            >
+                            <button type="button" id="get-short-info">Get Info</button>
+                        </div>
+                        
+                        <div id="short-info" class="video-info hidden">
+                            <div class="info-card">
+                                <h4 id="short-title">TikTok Short Video</h4>
+                                <p id="short-uploader">By: --</p>
+                                <p id="short-duration">Duration: --:--</p>
+                                <div class="format-selector">
+                                    <label for="short-format">Select Quality:</label>
+                                    <select id="short-format">
+                                        <option value="best">Best Quality</option>
+                                        <option value="worst">Lowest Quality</option>
+                                        <option value="mp4">MP4 Format</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled id="download-short-btn">
+                            Download Short Video
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- TikTok Long Videos Tab -->
+            <div class="tab-content" id="long">
+                <div class="download-form">
+                    <h3>Download TikTok Long Video</h3>
+                    <form id="tiktok-long-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="long-url" 
+                                placeholder="Paste TikTok Long Video URL here (e.g., https://www.tiktok.com/@user/video/...)"
+                                required
+                            >
+                            <button type="button" id="get-long-info">Get Info</button>
+                        </div>
+                        
+                        <div id="long-info" class="video-info hidden">
+                            <div class="info-card">
+                                <h4 id="long-title">TikTok Long Video</h4>
+                                <p id="long-uploader">By: --</p>
+                                <p id="long-duration">Duration: --:--</p>
+                                <div class="format-selector">
+                                    <label for="long-format">Select Quality:</label>
+                                    <select id="long-format">
+                                        <option value="best">Best Quality</option>
+                                        <option value="worst">Lowest Quality</option>
+                                        <option value="mp4">MP4 Format</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled id="download-long-btn">
+                            Download Long Video
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- TikTok Any Video Tab -->
+            <div class="tab-content" id="video">
+                <div class="download-form">
+                    <h3>Download TikTok Video</h3>
+                    <form id="tiktok-video-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="video-url" 
+                                placeholder="Paste any TikTok Video URL here"
+                                required
+                            >
+                            <button type="button" id="get-video-info">Get Info</button>
+                        </div>
+                        
+                        <div id="video-info" class="video-info hidden">
+                            <div class="info-card">
+                                <h4 id="video-title">TikTok Video</h4>
+                                <p id="video-uploader">By: --</p>
+                                <p id="video-duration">Duration: --:--</p>
+                                <div class="format-selector">
+                                    <label for="video-format">Select Quality:</label>
+                                    <select id="video-format">
+                                        <option value="best">Best Quality</option>
+                                        <option value="worst">Lowest Quality</option>
+                                        <option value="mp4">MP4 Format</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled id="download-video-btn">
+                            Download Video
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- TikTok Audio Tab -->
+            <div class="tab-content" id="audio">
+                <div class="download-form">
+                    <h3>Extract TikTok Audio</h3>
+                    <form id="tiktok-audio-form">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="audio-url" 
+                                placeholder="Paste TikTok URL here to extract audio"
+                                required
+                            >
+                            <button type="button" id="get-audio-info">Get Info</button>
+                        </div>
+                        
+                        <div id="audio-info" class="video-info hidden">
+                            <div class="info-card">
+                                <h4 id="audio-title">TikTok Audio</h4>
+                                <p id="audio-uploader">By: --</p>
+                                <p id="audio-duration">Duration: --:--</p>
+                                <p class="audio-note">🎵 Audio will be extracted at 192K quality</p>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled id="download-audio-btn">
+                            Download Audio (MP3)
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="loading-indicator hidden" id="loading">
+                <div class="spinner"></div>
+                <p id="loading-text">Processing your request...</p>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container hidden" id="progress-container">
+                <div class="progress-header">
+                    <span id="progress-text">Downloading...</span>
+                    <span id="progress-percentage">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-details">
+                    <span id="progress-speed"></span>
+                    <span id="progress-eta"></span>
+                </div>
+            </div>
+
+            <div class="tiktok-tips">
+                <h3>TikTok Download Tips</h3>
+                <div class="tips-grid">
+                    <div class="tip">
+                        <h4>🎯 All Video Types</h4>
+                        <p>Both short and long TikTok videos supported</p>
+                    </div>
+                    <div class="tip">
+                        <h4>🎵 Audio Extraction</h4>
+                        <p>Extract audio from any TikTok video as MP3</p>
+                    </div>
+                    <div class="tip">
+                        <h4>🚫 Watermark Free</h4>
+                        <p>Downloads without TikTok watermarks when possible</p>
+                    </div>
+                    <div class="tip">
+                        <h4>📱 Mobile Ready</h4>
+                        <p>Perfect for downloading on your phone</p>
+                    </div>
+                </div>
+
+                <div class="how-to-get-url">
+                    <h4>How to get TikTok URL:</h4>
+                    <ol>
+                        <li>Open TikTok app or website</li>
+                        <li>Find the video you want to download</li>
+                        <li>Tap the "Share" button</li>
+                        <li>Select "Copy Link"</li>
+                        <li>Paste the URL above</li>
+                    </ol>
+                </div>
+
+                <div class="supported-urls">
+                    <h4>Supported URL formats:</h4>
+                    <ul>
+                        <li>✓ tiktok.com/@username/video/...</li>
+                        <li>✓ vm.tiktok.com/... (shortened URLs)</li>
+                        <li>✓ m.tiktok.com/... (mobile URLs)</li>
+                        <li>✓ Short and long form videos</li>
+                        <li>✓ Both public and unlisted videos</li>
+                    </ul>
+                </div>
+
+                <div class="quality-info">
+                    <h4>Quality Options:</h4>
+                    <ul>
+                        <li><strong>Best Quality:</strong> Highest available resolution</li>
+                        <li><strong>Lowest Quality:</strong> Smaller file size</li>
+                        <li><strong>MP4 Format:</strong> Standard video format</li>
+                        <li><strong>Audio (MP3):</strong> 192K audio quality</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Video Downloader. All rights reserved.</p>
+            <p>Use responsibly and respect content creators' rights.</p>
+        </div>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script>
+        // Initialize TikTok page specific functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTikTokPage();
+        });
+    </script>
+</body>
+</html>
