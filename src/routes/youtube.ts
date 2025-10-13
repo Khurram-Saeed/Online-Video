@@ -114,7 +114,6 @@ router.post('/download', async (req, res) => {
           format: format_id || 'bestvideo[height=2160]+bestaudio/bestvideo[height<=2160]+bestaudio/best',
           mergeOutputFormat: 'mkv',
           output: finalPath,
-          cookies: require('path').resolve(__dirname, 'cookies.txt'),
         });
 
         childProcess.stderr?.on('data', (data) => {
@@ -187,7 +186,6 @@ router.post('/download', async (req, res) => {
         const execOptions: any = {
           format: format_id || 'best[height<=1080]/best',
           output: '-', // Output to stdout
-          cookies: require('path').resolve(__dirname, 'cookies.txt'),
         };
         const childProcess = ytdlp.exec(url, execOptions);
 
@@ -256,7 +254,7 @@ router.post('/playlist/info', async (req, res) => {
     // Format entries for frontend (ensure proper per-video URL)
     const formattedEntries = entries.map((entry: any, index: number) => {
       const vid = entry.id || entry.video_id || (entry.resource_id && entry.resource_id.videoId);
-      const videoUrl = vid ? `https://www.youtube.com/watch?v=${vid}` : (entry.url || `https://www.youtube.com/watch?v=video_${index}`);
+      const videoUrl = vid ? `https://www.youtube.com/watch?v=${vid}` : (entry.url || `  https://www.youtube.com/watch?v=video_${index}`);
       return {
         id: vid || `video_${index}`,
         title: entry.title || `Video ${index + 1}`,
@@ -340,7 +338,6 @@ router.post('/playlist/download', async (req, res) => {
           format: format_id || 'bestvideo[height=2160]+bestaudio/bestvideo[height<=2160]+bestaudio/best',
           mergeOutputFormat: 'mkv',
           output: finalPath,
-          cookies: require('path').resolve(__dirname, 'cookies.txt'),
         });
 
         childProcess.stderr?.on('data', (data) => {
@@ -413,7 +410,6 @@ router.post('/playlist/download', async (req, res) => {
         const execOptions: any = {
           format: format_id || 'best[height<=1080]/best',
           output: '-', // Output to stdout
-          cookies: require('path').resolve(__dirname, 'cookies.txt'),
         };
         const childProcess = ytdlp.exec(url, execOptions);
 
@@ -486,11 +482,10 @@ router.post('/mp3', async (req, res) => {
     try {
       // Use exec for MP3 extraction
       const childProcess = ytdlp.exec(url, {
-  format: 'bestaudio',
-  extractAudio: true,
-  audioFormat: 'mp3',
-  output: '-',
-  cookies: require('path').resolve(__dirname, 'cookies.txt')
+        format: 'bestaudio',
+        extractAudio: true,
+        audioFormat: 'mp3',
+        output: '-',
       });
       
       childProcess.stdout?.pipe(res);
@@ -562,9 +557,8 @@ router.post('/shorts', async (req, res) => {
     try {
       // Use exec to pipe directly to response - same as regular video download
       const childProcess = ytdlp.exec(url, {
-  format: format_id || 'best[height<=1080]/best',
-  output: '-', // Output to stdout
-  cookies: require('path').resolve(__dirname, 'cookies.txt')
+        format: format_id || 'best[height<=1080]/best',
+        output: '-', // Output to stdout
       });
       
       childProcess.stdout?.pipe(res);
