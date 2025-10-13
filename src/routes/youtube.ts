@@ -35,10 +35,10 @@ router.post('/info', async (req, res) => {
       formats_count: Array.isArray((info as any).formats) ? (info as any).formats.length : 'N/A'
     });
 
-    // Create format options for user selection
+    // Create format options for user selection — MAX 1440p
     const formatOptions = [
-      { format_id: 'bestvideo[height=2160]+bestaudio/bestvideo[height<=2160]+bestaudio/best[height<=2160]', ext: 'mkv', quality: '2160p', format_note: '4K (Requires ffmpeg)' },
-      { format_id: 'best[height<=1080]', ext: 'mp4', quality: '1080p', format_note: '1080p (Best)' },
+      { format_id: 'best[height<=1440]', ext: 'mp4', quality: '1440p (2K)', format_note: '2K (Usually no ffmpeg needed)' },
+      { format_id: 'best[height<=1080]', ext: 'mp4', quality: '1080p (Full HD)', format_note: '1080p (Best)' },
       { format_id: 'best[height<=720]', ext: 'mp4', quality: '720p (HD)' },
       { format_id: 'best[height<=480]', ext: 'mp4', quality: '480p (Standard)' },
       { format_id: 'best[height<=360]', ext: 'mp4', quality: '360p (Low)' },
@@ -62,7 +62,7 @@ router.post('/info', async (req, res) => {
   }
 });
 
-// Download video
+// Download video — MAX 1440p (no 4K logic)
 router.post('/download', async (req, res) => {
   try {
     const { url, format_id, quality } = req.body;
@@ -91,9 +91,8 @@ router.post('/download', async (req, res) => {
       quality: quality
     });
 
-    // Decide output extension (use MKV for 4K to ensure proper merge without re-encode)
-    const isFourKSelected = (typeof format_id === 'string' && /2160|bestvideo\[.*2160/.test(format_id)) || (typeof quality === 'string' && /2160/.test(quality));
-    const desiredExt = isFourKSelected ? 'mkv' : 'mp4';
+    // Since we removed 4K, always use mp4 and direct streaming
+    const desiredExt = 'mp4';
 
     // Set response headers for file download
     res.setHeader('Content-Type', 'application/octet-stream');
@@ -102,110 +101,29 @@ router.post('/download', async (req, res) => {
     console.log('🚀 [YouTube DOWNLOAD] Starting ytdlp download process...');
 
     try {
-      if (isFourKSelected) {
-        // For 4K (separate video+audio), download to disk and merge with ffmpeg, then stream the merged file
-        const tempDir = path.join(process.cwd(), 'tmp_downloads');
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
+      // ALWAYS use direct streaming (no 4K = no disk merge needed)
+      const execOptions: any = {
+        format: format_id || 'best[height<=1440]/best',
+        output: '-', // Output to stdout
+      };
+      const childProcess = ytdlp.exec(url, execOptions);
+
+      childProcess.stdout?.pipe(res);
+
+      childProcess.on('close', (code) => {
+        console.log(`✅ [YouTube DOWNLOAD] Download completed with code: ${code}`);
+      });
+
+      childProcess.on('error', (error) => {
+        console.error('❌ [YouTube DOWNLOAD] Process error:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Download failed: ' + error.message });
         }
-        const finalPath = path.join(tempDir, `${safeTitle}.mkv`);
+      });
 
-        const childProcess = ytdlp.exec(url, {
-          format: format_id || 'bestvideo[height=2160]+bestaudio/bestvideo[height<=2160]+bestaudio/best',
-          mergeOutputFormat: 'mkv',
-          output: finalPath,
-        });
-
-        childProcess.stderr?.on('data', (data) => {
-          console.log('📊 [YouTube DOWNLOAD] Progress:', data.toString().trim());
-        });
-
-        childProcess.on('close', (code) => {
-          console.log(`✅ [YouTube DOWNLOAD] Download process exited with code: ${code}`);
-          if (code !== 0) {
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Download failed during merging. Ensure ffmpeg is installed and accessible.' });
-            }
-            return;
-          }
-
-          // Locate the merged output reliably (yt-dlp might choose a different extension)
-          let streamPath = finalPath;
-          if (!fs.existsSync(streamPath)) {
-            const candidates = ['mkv', 'mp4', 'webm', 'm4v'].map(ext => path.join(tempDir, `${safeTitle}.${ext}`));
-            for (const candidate of candidates) {
-              if (fs.existsSync(candidate)) {
-                streamPath = candidate;
-                break;
-              }
-            }
-            // As a fallback, pick the largest file that starts with safeTitle
-            if (!fs.existsSync(streamPath)) {
-              try {
-                const files = fs.readdirSync(tempDir)
-                  .filter(f => f.startsWith(`${safeTitle}.`) && !f.endsWith('.part'))
-                  .map(f => path.join(tempDir, f));
-                if (files.length) {
-                  files.sort((a, b) => (fs.statSync(b).size - fs.statSync(a).size));
-                  streamPath = files[0];
-                }
-              } catch (e) {
-                // ignore
-              }
-            }
-          }
-
-          if (!fs.existsSync(streamPath)) {
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Merged file not found after download.' });
-            }
-            return;
-          }
-
-          const readStream = fs.createReadStream(streamPath);
-          readStream.on('error', (err) => {
-            console.error('❌ [YouTube DOWNLOAD] Read stream error:', err);
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Failed to stream merged file: ' + err.message });
-            }
-          });
-          readStream.on('close', () => {
-            fs.unlink(streamPath, () => {});
-          });
-          readStream.pipe(res);
-        });
-
-        childProcess.on('error', (error) => {
-          console.error('❌ [YouTube DOWNLOAD] Process error:', error);
-          if (!res.headersSent) {
-            res.status(500).json({ error: 'Download failed: ' + error.message });
-          }
-        });
-      } else {
-        // For non-4K, pipe directly to response
-        const execOptions: any = {
-          format: format_id || 'best[height<=1080]/best',
-          output: '-', // Output to stdout
-        };
-        const childProcess = ytdlp.exec(url, execOptions);
-
-        childProcess.stdout?.pipe(res);
-
-        childProcess.on('close', (code) => {
-          console.log(`✅ [YouTube DOWNLOAD] Download completed with code: ${code}`);
-        });
-
-        childProcess.on('error', (error) => {
-          console.error('❌ [YouTube DOWNLOAD] Process error:', error);
-          if (!res.headersSent) {
-            res.status(500).json({ error: 'Download failed: ' + error.message });
-          }
-        });
-
-        childProcess.stderr?.on('data', (data) => {
-          console.log('📊 [YouTube DOWNLOAD] Progress:', data.toString().trim());
-        });
-      }
+      childProcess.stderr?.on('data', (data) => {
+        console.log('📊 [YouTube DOWNLOAD] Progress:', data.toString().trim());
+      });
     } catch (execError) {
       console.error('❌ [YouTube DOWNLOAD] Failed to start download:', execError);
       if (!res.headersSent) {
@@ -221,7 +139,7 @@ router.post('/download', async (req, res) => {
   }
 });
 
-// Get playlist info
+// Get playlist info — MAX 1440p
 router.post('/playlist/info', async (req, res) => {
   try {
     const { url } = req.body;
@@ -251,10 +169,10 @@ router.post('/playlist/info', async (req, res) => {
       video_count: entries.length
     });
 
-    // Format entries for frontend (ensure proper per-video URL)
+    // Format entries for frontend
     const formattedEntries = entries.map((entry: any, index: number) => {
       const vid = entry.id || entry.video_id || (entry.resource_id && entry.resource_id.videoId);
-      const videoUrl = vid ? `https://www.youtube.com/watch?v=${vid}` : (entry.url || `  https://www.youtube.com/watch?v=video_${index}`);
+      const videoUrl = vid ? `https://www.youtube.com/watch?v=${vid}` : (entry.url || `    https://www.youtube.com/watch?v=video_${index}`);
       return {
         id: vid || `video_${index}`,
         title: entry.title || `Video ${index + 1}`,
@@ -266,13 +184,13 @@ router.post('/playlist/info', async (req, res) => {
       };
     });
 
-    // Create format options for playlist downloads
+    // Format options — MAX 1440p
     const formatOptions = [
-      { format_id: 'bestvideo[height=2160]+bestaudio/bestvideo[height<=2160]+bestaudio/best[height<=2160]', ext: 'mkv', quality: '2160p', format_note: '4K (Requires ffmpeg)' },
-      { format_id: 'best[height<=1080]', ext: 'mp4', quality: '1080p', format_note: '1080p (Best)' },
-      { format_id: 'best[height<=720]', ext: 'mp4', quality: '720p', format_note: '720p (HD)' },
-      { format_id: 'best[height<=480]', ext: 'mp4', quality: '480p', format_note: '480p (Standard)' },
-      { format_id: 'best[height<=360]', ext: 'mp4', quality: '360p', format_note: '360p (Low)' },
+      { format_id: 'best[height<=1440]', ext: 'mp4', quality: '1440p (2K)', format_note: '2K (Usually no ffmpeg needed)' },
+      { format_id: 'best[height<=1080]', ext: 'mp4', quality: '1080p (Best)' },
+      { format_id: 'best[height<=720]', ext: 'mp4', quality: '720p (HD)' },
+      { format_id: 'best[height<=480]', ext: 'mp4', quality: '480p (Standard)' },
+      { format_id: 'best[height<=360]', ext: 'mp4', quality: '360p (Low)' },
       { format_id: 'bestaudio', ext: 'mp3', quality: 'Audio Only', format_note: 'Audio Only (MP3)' }
     ];
 
@@ -290,7 +208,7 @@ router.post('/playlist/info', async (req, res) => {
   }
 });
 
-// Download single video from playlist
+// Download single video from playlist — MAX 1440p
 router.post('/playlist/download', async (req, res) => {
   try {
     const { url, format_id, quality, title } = req.body;
@@ -315,121 +233,39 @@ router.post('/playlist/download', async (req, res) => {
       quality: quality
     });
 
-    // Decide output extension (use MKV for 4K to ensure proper merge without re-encode)
-    const isFourKSelected = (typeof format_id === 'string' && /2160|bestvideo\[.*2160/.test(format_id)) || (typeof quality === 'string' && /2160/.test(quality));
-    const desiredExt = isFourKSelected ? 'mkv' : 'mp4';
+    // Always mp4, no 4K
+    const desiredExt = 'mp4';
 
-    // Set response headers for file download
+    // Set response headers
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.${desiredExt}"`);
 
     console.log('🚀 [YouTube PLAYLIST DOWNLOAD] Starting ytdlp download process...');
 
     try {
-      if (isFourKSelected) {
-        // For 4K (separate video+audio), download to disk and merge with ffmpeg, then stream the merged file
-        const tempDir = path.join(process.cwd(), 'tmp_downloads');
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
+      // Direct streaming only
+      const execOptions: any = {
+        format: format_id || 'best[height<=1440]/best',
+        output: '-',
+      };
+      const childProcess = ytdlp.exec(url, execOptions);
+
+      childProcess.stdout?.pipe(res);
+
+      childProcess.on('close', (code) => {
+        console.log(`✅ [YouTube PLAYLIST DOWNLOAD] Download completed with code: ${code}`);
+      });
+
+      childProcess.on('error', (error) => {
+        console.error('❌ [YouTube PLAYLIST DOWNLOAD] Process error:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Download failed: ' + error.message });
         }
-        const finalPath = path.join(tempDir, `${safeTitle}.mkv`);
+      });
 
-        const childProcess = ytdlp.exec(url, {
-          format: format_id || 'bestvideo[height=2160]+bestaudio/bestvideo[height<=2160]+bestaudio/best',
-          mergeOutputFormat: 'mkv',
-          output: finalPath,
-        });
-
-        childProcess.stderr?.on('data', (data) => {
-          console.log('📊 [YouTube PLAYLIST DOWNLOAD] Progress:', data.toString().trim());
-        });
-
-        childProcess.on('close', (code) => {
-          console.log(`✅ [YouTube PLAYLIST DOWNLOAD] Download process exited with code: ${code}`);
-          if (code !== 0) {
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Download failed during merging. Ensure ffmpeg is installed and accessible.' });
-            }
-            return;
-          }
-
-          // Locate the merged output reliably (yt-dlp might choose a different extension)
-          let streamPath = finalPath;
-          if (!fs.existsSync(streamPath)) {
-            const candidates = ['mkv', 'mp4', 'webm', 'm4v'].map(ext => path.join(tempDir, `${safeTitle}.${ext}`));
-            for (const candidate of candidates) {
-              if (fs.existsSync(candidate)) {
-                streamPath = candidate;
-                break;
-              }
-            }
-            // As a fallback, pick the largest file that starts with safeTitle
-            if (!fs.existsSync(streamPath)) {
-              try {
-                const files = fs.readdirSync(tempDir)
-                  .filter(f => f.startsWith(`${safeTitle}.`) && !f.endsWith('.part'))
-                  .map(f => path.join(tempDir, f));
-                if (files.length) {
-                  files.sort((a, b) => (fs.statSync(b).size - fs.statSync(a).size));
-                  streamPath = files[0];
-                }
-              } catch (e) {
-                // ignore
-              }
-            }
-          }
-
-          if (!fs.existsSync(streamPath)) {
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Merged file not found after download.' });
-            }
-            return;
-          }
-
-          const readStream = fs.createReadStream(streamPath);
-          readStream.on('error', (err) => {
-            console.error('❌ [YouTube PLAYLIST DOWNLOAD] Read stream error:', err);
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Failed to stream merged file: ' + err.message });
-            }
-          });
-          readStream.on('close', () => {
-            fs.unlink(streamPath, () => {});
-          });
-          readStream.pipe(res);
-        });
-
-        childProcess.on('error', (error) => {
-          console.error('❌ [YouTube PLAYLIST DOWNLOAD] Process error:', error);
-          if (!res.headersSent) {
-            res.status(500).json({ error: 'Download failed: ' + error.message });
-          }
-        });
-      } else {
-        // For non-4K, pipe directly to response
-        const execOptions: any = {
-          format: format_id || 'best[height<=1080]/best',
-          output: '-', // Output to stdout
-        };
-        const childProcess = ytdlp.exec(url, execOptions);
-
-        childProcess.stdout?.pipe(res);
-
-        childProcess.on('close', (code) => {
-          console.log(`✅ [YouTube PLAYLIST DOWNLOAD] Download completed with code: ${code}`);
-        });
-
-        childProcess.on('error', (error) => {
-          console.error('❌ [YouTube PLAYLIST DOWNLOAD] Process error:', error);
-          if (!res.headersSent) {
-            res.status(500).json({ error: 'Download failed: ' + error.message });
-          }
-        });
-
-        childProcess.stderr?.on('data', (data) => {
-          console.log('📊 [YouTube PLAYLIST DOWNLOAD] Progress:', data.toString().trim());
-        });
-      }
+      childProcess.stderr?.on('data', (data) => {
+        console.log('📊 [YouTube PLAYLIST DOWNLOAD] Progress:', data.toString().trim());
+      });
     } catch (execError) {
       console.error('❌ [YouTube PLAYLIST DOWNLOAD] Failed to start download:', execError);
       if (!res.headersSent) {
@@ -480,7 +316,6 @@ router.post('/mp3', async (req, res) => {
     console.log('🚀 [YouTube MP3] Starting ytdlp MP3 extraction...');
 
     try {
-      // Use exec for MP3 extraction
       const childProcess = ytdlp.exec(url, {
         format: 'bestaudio',
         extractAudio: true,
@@ -555,9 +390,8 @@ router.post('/shorts', async (req, res) => {
     console.log('🚀 [YouTube SHORTS] Starting ytdlp download process...');
 
     try {
-      // Use exec to pipe directly to response - same as regular video download
       const childProcess = ytdlp.exec(url, {
-        format: format_id || 'best[height<=1080]/best',
+        format: format_id || 'best[height<=1440]/best',
         output: '-', // Output to stdout
       });
       
