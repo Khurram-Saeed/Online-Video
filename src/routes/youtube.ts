@@ -6,11 +6,7 @@ import fs from 'fs';
 const router = express.Router();
 const ytdlp = new YtDlp();
 
-// Check if cookies.txt exists
-const COOKIES_PATH = path.resolve(process.cwd(), 'cookies.txt');
-const hasCookies = fs.existsSync(COOKIES_PATH);
-
-// Get video info — FULL QUALITY (for single video)
+// Get video info
 router.post('/info', async (req, res) => {
   try {
     const { url } = req.body;
@@ -29,10 +25,8 @@ router.post('/info', async (req, res) => {
 
     console.log('📡 [YouTube INFO] Fetching video information...');
     
-    const execOptions: any = {};
-    if (hasCookies) execOptions.cookies = COOKIES_PATH;
-
-    const info = await ytdlp.getInfoAsync(url, execOptions);
+    // Get video information using ytdlp
+    const info = await ytdlp.getInfoAsync(url);
 
     console.log('✅ [YouTube INFO] Successfully fetched video info:', {
       title: info.title,
@@ -41,14 +35,12 @@ router.post('/info', async (req, res) => {
       formats_count: Array.isArray((info as any).formats) ? (info as any).formats.length : 'N/A'
     });
 
-    // FULL QUALITY options (for single video)
+    // Create format options for user selection
     const formatOptions = [
-      { format_id: 'bestvideo[height=2160]+bestaudio/best[height<=2160]', ext: 'mkv', quality: '2160p (4K)', format_note: '4K (Requires ffmpeg)' },
-      { format_id: 'best[height<=1440]', ext: 'mp4', quality: '1440p (2K)', format_note: '2K (Usually no ffmpeg needed)' },
-      { format_id: 'best[height<=1080]', ext: 'mp4', quality: '1080p (Full HD)', format_note: '1080p (Best)' },
-      { format_id: 'best[height<=720]', ext: 'mp4', quality: '720p (HD)' },
-      { format_id: 'best[height<=480]', ext: 'mp4', quality: '480p (Standard)' },
-      { format_id: 'best[height<=360]', ext: 'mp4', quality: '360p (Low)' },
+      { format_id: 'best[height<=1080]', ext: 'mp4', quality: '1080p', format_note: '1080p (Best)' },
+      { format_id: 'best[height<=720]', ext: 'mp4', quality: '720p', format_note: '720p (HD)' },
+      { format_id: 'best[height<=480]', ext: 'mp4', quality: '480p', format_note: '480p (Standard)' },
+      { format_id: 'best[height<=360]', ext: 'mp4', quality: '360p', format_note: '360p (Low)' },
       { format_id: 'bestaudio', ext: 'mp3', quality: 'Audio Only', format_note: 'Audio Only (MP3)' }
     ];
 
@@ -63,13 +55,13 @@ router.post('/info', async (req, res) => {
       description: (info as any).description ? (info as any).description.substring(0, 200) + '...' : '',
       formats: formatOptions
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ [YouTube INFO] Error getting video info:', error.message);
     res.status(500).json({ error: 'Failed to get video information: ' + error.message });
   }
 });
 
-// Download video — FULL QUALITY (4K/2K supported)
+// Download video
 router.post('/download', async (req, res) => {
   try {
     const { url, format_id, quality } = req.body;
@@ -86,7 +78,10 @@ router.post('/download', async (req, res) => {
       return res.status(400).json({ error: 'Please provide a valid YouTube URL' });
     }
 
+    // First get video info to determine filename
+    console.log('📡 [YouTube DOWNLOAD] Getting video info for filename...');
     const info = await ytdlp.getInfoAsync(url);
+
     const safeTitle = info.title.replace(/[^a-zA-Z0-9\s\-_]/g, '').substring(0, 50);
     
     console.log('🎬 [YouTube DOWNLOAD] Starting download:', {
@@ -95,129 +90,43 @@ router.post('/download', async (req, res) => {
       quality: quality
     });
 
-    const isFourKSelected = (typeof format_id === 'string' && /2160|bestvideo\[.*2160/.test(format_id)) || (typeof quality === 'string' && /2160/.test(quality));
-    const desiredExt = isFourKSelected ? 'mkv' : 'mp4';
-
+    // Set response headers for file download
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.${desiredExt}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.mp4"`);
 
     console.log('🚀 [YouTube DOWNLOAD] Starting ytdlp download process...');
 
     try {
-      if (isFourKSelected) {
-        // 4K: download + merge to disk
-        const tempDir = path.join(process.cwd(), 'tmp_downloads');
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
+      // Use exec to pipe directly to response
+      const childProcess = ytdlp.exec(url, {
+        format: format_id || 'best[height<=1080]/best',
+        output: '-' // Output to stdout
+      });
+      
+      childProcess.stdout?.pipe(res);
+      
+      childProcess.on('close', (code) => {
+        console.log(`✅ [YouTube DOWNLOAD] Download completed with code: ${code}`);
+      });
+      
+      childProcess.on('error', (error) => {
+        console.error('❌ [YouTube DOWNLOAD] Process error:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Download failed: ' + error.message });
         }
-        const finalPath = path.join(tempDir, `${safeTitle}.mkv`);
-
-        const execOptions: any = {
-          format: format_id || 'bestvideo[height=2160]+bestaudio/best',
-          mergeOutputFormat: 'mkv',
-          output: finalPath,
-        };
-        if (hasCookies) execOptions.cookies = COOKIES_PATH;
-
-        const childProcess = ytdlp.exec(url, execOptions);
-
-        childProcess.stderr?.on('data', (data) => {
-          console.log('📊 [YouTube DOWNLOAD] Progress:', data.toString().trim());
-        });
-
-        childProcess.on('close', (code) => {
-          console.log(`✅ [YouTube DOWNLOAD] Download process exited with code: ${code}`);
-          if (code !== 0) {
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Download failed during merging. Ensure ffmpeg is installed and accessible.' });
-            }
-            return;
-          }
-
-          let streamPath = finalPath;
-          if (!fs.existsSync(streamPath)) {
-            const candidates = ['mkv', 'mp4', 'webm', 'm4v'].map(ext => path.join(tempDir, `${safeTitle}.${ext}`));
-            for (const candidate of candidates) {
-              if (fs.existsSync(candidate)) {
-                streamPath = candidate;
-                break;
-              }
-            }
-            if (!fs.existsSync(streamPath)) {
-              try {
-                const files = fs.readdirSync(tempDir)
-                  .filter(f => f.startsWith(`${safeTitle}.`) && !f.endsWith('.part'))
-                  .map(f => path.join(tempDir, f));
-                if (files.length) {
-                  files.sort((a, b) => (fs.statSync(b).size - fs.statSync(a).size));
-                  streamPath = files[0];
-                }
-              } catch (e) {
-                // ignore
-              }
-            }
-          }
-
-          if (!fs.existsSync(streamPath)) {
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Merged file not found after download.' });
-            }
-            return;
-          }
-
-          const readStream = fs.createReadStream(streamPath);
-          readStream.on('error', (err) => {
-            console.error('❌ [YouTube DOWNLOAD] Read stream error:', err);
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Failed to stream merged file: ' + err.message });
-            }
-          });
-          readStream.on('close', () => {
-            fs.unlink(streamPath, () => {});
-          });
-          readStream.pipe(res);
-        });
-
-        childProcess.on('error', (error) => {
-          console.error('❌ [YouTube DOWNLOAD] Process error:', error);
-          if (!res.headersSent) {
-            res.status(500).json({ error: 'Download failed: ' + error.message });
-          }
-        });
-      } else {
-        // Non-4K: direct streaming
-        const execOptions: any = {
-          format: format_id || 'best[height<=1440]/best',
-          output: '-',
-        };
-        if (hasCookies) execOptions.cookies = COOKIES_PATH;
-
-        const childProcess = ytdlp.exec(url, execOptions);
-        childProcess.stdout?.pipe(res);
-
-        childProcess.on('close', (code) => {
-          console.log(`✅ [YouTube DOWNLOAD] Download completed with code: ${code}`);
-        });
-
-        childProcess.on('error', (error) => {
-          console.error('❌ [YouTube DOWNLOAD] Process error:', error);
-          if (!res.headersSent) {
-            res.status(500).json({ error: 'Download failed: ' + error.message });
-          }
-        });
-
-        childProcess.stderr?.on('data', (data) => {
-          console.log('📊 [YouTube DOWNLOAD] Progress:', data.toString().trim());
-        });
-      }
-    } catch (execError: any) {
-      console.error('❌ [YouTube DOWNLOAD] Failed to start download:', execError.message);
+      });
+      
+      childProcess.stderr?.on('data', (data) => {
+        console.log('📊 [YouTube DOWNLOAD] Progress:', data.toString().trim());
+      });
+    } catch (execError) {
+      console.error('❌ [YouTube DOWNLOAD] Failed to start download:', execError);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Failed to start download: ' + execError.message });
       }
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ [YouTube DOWNLOAD] Error downloading video:', error.message);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Failed to download video: ' + error.message });
@@ -225,7 +134,7 @@ router.post('/download', async (req, res) => {
   }
 });
 
-// Get playlist info — MAX 720p
+// Get playlist info
 router.post('/playlist/info', async (req, res) => {
   try {
     const { url } = req.body;
@@ -242,10 +151,10 @@ router.post('/playlist/info', async (req, res) => {
       return res.status(400).json({ error: 'Please provide a valid YouTube URL' });
     }
 
-    const execOptions: any = {};
-    if (hasCookies) execOptions.cookies = COOKIES_PATH;
-
-    const info = await ytdlp.getInfoAsync(url, execOptions);
+    console.log('📡 [YouTube PLAYLIST INFO] Getting playlist information...');
+    
+    // Get playlist information using ytdlp to get all entries
+    const info = await ytdlp.getInfoAsync(url);
 
     const playlistTitle = (info as any).playlist_title || (info as any).title || 'YouTube Playlist';
     const entries = (info as any).entries || [];
@@ -255,25 +164,23 @@ router.post('/playlist/info', async (req, res) => {
       video_count: entries.length
     });
 
-    const formattedEntries = entries.map((entry: any, index: number) => {
-      const vid = entry.id || entry.video_id || (entry.resource_id && entry.resource_id.videoId);
-      const videoUrl = vid ? `https://www.youtube.com/watch?v=${vid}` : (entry.url || `https://www.youtube.com/watch?v=video_${index}`);
-      return {
-        id: vid || `video_${index}`,
-        title: entry.title || `Video ${index + 1}`,
-        url: videoUrl,
-        duration: entry.duration,
-        uploader: entry.uploader || entry.channel,
-        thumbnail: entry.thumbnail,
-        view_count: entry.view_count
-      };
-    });
+    // Format entries for frontend
+    const formattedEntries = entries.map((entry: any, index: number) => ({
+      id: entry.id || `video_${index}`,
+      title: entry.title || `Video ${index + 1}`,
+      url: entry.url || `https://www.youtube.com/watch?v=${entry.id}`,
+      duration: entry.duration,
+      uploader: entry.uploader || entry.channel,
+      thumbnail: entry.thumbnail,
+      view_count: entry.view_count
+    }));
 
-    // Playlist: MAX 720p
+    // Create format options for playlist downloads
     const formatOptions = [
-      { format_id: 'best[height<=720]', ext: 'mp4', quality: '720p (HD)' },
-      { format_id: 'best[height<=480]', ext: 'mp4', quality: '480p (Standard)' },
-      { format_id: 'best[height<=360]', ext: 'mp4', quality: '360p (Low)' },
+      { format_id: 'best[height<=1080]', ext: 'mp4', quality: '1080p', format_note: '1080p (Best)' },
+      { format_id: 'best[height<=720]', ext: 'mp4', quality: '720p', format_note: '720p (HD)' },
+      { format_id: 'best[height<=480]', ext: 'mp4', quality: '480p', format_note: '480p (Standard)' },
+      { format_id: 'best[height<=360]', ext: 'mp4', quality: '360p', format_note: '360p (Low)' },
       { format_id: 'bestaudio', ext: 'mp3', quality: 'Audio Only', format_note: 'Audio Only (MP3)' }
     ];
 
@@ -285,13 +192,13 @@ router.post('/playlist/info', async (req, res) => {
       entries: formattedEntries,
       formats: formatOptions
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ [YouTube PLAYLIST INFO] Error getting playlist info:', error.message);
     res.status(500).json({ error: 'Failed to get playlist information: ' + error.message });
   }
 });
 
-// Download single video from playlist — MAX 720p
+// Download single video from playlist
 router.post('/playlist/download', async (req, res) => {
   try {
     const { url, format_id, quality, title } = req.body;
@@ -316,45 +223,43 @@ router.post('/playlist/download', async (req, res) => {
       quality: quality
     });
 
-    const desiredExt = 'mp4';
-
+    // Set response headers for file download
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.${desiredExt}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.mp4"`);
 
     console.log('🚀 [YouTube PLAYLIST DOWNLOAD] Starting ytdlp download process...');
 
     try {
-      const execOptions: any = {
-        format: format_id || 'best[height<=720]/best',
-        output: '-',
-      };
-      if (hasCookies) execOptions.cookies = COOKIES_PATH;
-
-      const childProcess = ytdlp.exec(url, execOptions);
+      // Use exec to pipe directly to response
+      const childProcess = ytdlp.exec(url, {
+        format: format_id || 'best[height<=1080]/best',
+        output: '-' // Output to stdout
+      });
+      
       childProcess.stdout?.pipe(res);
-
+      
       childProcess.on('close', (code) => {
         console.log(`✅ [YouTube PLAYLIST DOWNLOAD] Download completed with code: ${code}`);
       });
-
+      
       childProcess.on('error', (error) => {
         console.error('❌ [YouTube PLAYLIST DOWNLOAD] Process error:', error);
         if (!res.headersSent) {
           res.status(500).json({ error: 'Download failed: ' + error.message });
         }
       });
-
+      
       childProcess.stderr?.on('data', (data) => {
         console.log('📊 [YouTube PLAYLIST DOWNLOAD] Progress:', data.toString().trim());
       });
-    } catch (execError: any) {
-      console.error('❌ [YouTube PLAYLIST DOWNLOAD] Failed to start download:', execError.message);
+    } catch (execError) {
+      console.error('❌ [YouTube PLAYLIST DOWNLOAD] Failed to start download:', execError);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Failed to start download: ' + execError.message });
       }
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ [YouTube PLAYLIST DOWNLOAD] Error downloading video:', error.message);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Failed to download video: ' + error.message });
@@ -379,10 +284,10 @@ router.post('/mp3', async (req, res) => {
       return res.status(400).json({ error: 'Please provide a valid YouTube URL' });
     }
 
-    const execOptions: any = {};
-    if (hasCookies) execOptions.cookies = COOKIES_PATH;
+    // Get video info for filename
+    console.log('📡 [YouTube MP3] Getting video info...');
+    const info = await ytdlp.getInfoAsync(url);
 
-    const info = await ytdlp.getInfoAsync(url, execOptions);
     const safeTitle = info.title.replace(/[^a-zA-Z0-9\s\-_]/g, '').substring(0, 50);
     
     console.log('🎵 [YouTube MP3] Starting MP3 download:', {
@@ -390,21 +295,21 @@ router.post('/mp3', async (req, res) => {
       safeTitle: safeTitle
     });
 
+    // Set response headers for MP3 download
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.mp3"`);
 
     console.log('🚀 [YouTube MP3] Starting ytdlp MP3 extraction...');
 
     try {
-      const execOptions: any = {
+      // Use exec for MP3 extraction
+      const childProcess = ytdlp.exec(url, {
         format: 'bestaudio',
         extractAudio: true,
         audioFormat: 'mp3',
-        output: '-',
-      };
-      if (hasCookies) execOptions.cookies = COOKIES_PATH;
-
-      const childProcess = ytdlp.exec(url, execOptions);
+        output: '-'
+      });
+      
       childProcess.stdout?.pipe(res);
       
       childProcess.on('close', (code) => {
@@ -421,14 +326,14 @@ router.post('/mp3', async (req, res) => {
       childProcess.stderr?.on('data', (data) => {
         console.log('📊 [YouTube MP3] Progress:', data.toString().trim());
       });
-    } catch (execError: any) {
-      console.error('❌ [YouTube MP3] Failed to start MP3 extraction:', execError.message);
+    } catch (execError) {
+      console.error('❌ [YouTube MP3] Failed to start MP3 extraction:', execError);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Failed to start MP3 download: ' + execError.message });
       }
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ [YouTube MP3] Error downloading MP3:', error.message);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Failed to download MP3: ' + error.message });
@@ -436,7 +341,7 @@ router.post('/mp3', async (req, res) => {
   }
 });
 
-// Download YouTube Shorts — MAX 720p
+// Download YouTube Shorts
 router.post('/shorts', async (req, res) => {
   try {
     const { url, format_id, quality } = req.body;
@@ -453,10 +358,10 @@ router.post('/shorts', async (req, res) => {
       return res.status(400).json({ error: 'Please provide a valid YouTube URL' });
     }
 
-    const execOptions: any = {};
-    if (hasCookies) execOptions.cookies = COOKIES_PATH;
+    // First get video info to determine filename
+    console.log('📡 [YouTube SHORTS] Getting video info for filename...');
+    const info = await ytdlp.getInfoAsync(url);
 
-    const info = await ytdlp.getInfoAsync(url, execOptions);
     const safeTitle = info.title.replace(/[^a-zA-Z0-9\s\-_]/g, '').substring(0, 50);
     
     console.log('⚡ [YouTube SHORTS] Starting download:', {
@@ -465,19 +370,19 @@ router.post('/shorts', async (req, res) => {
       quality: quality
     });
 
+    // Set response headers for file download
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.mp4"`);
 
     console.log('🚀 [YouTube SHORTS] Starting ytdlp download process...');
 
     try {
-      const execOptions: any = {
-        format: format_id || 'best[height<=720]/best',
-        output: '-',
-      };
-      if (hasCookies) execOptions.cookies = COOKIES_PATH;
-
-      const childProcess = ytdlp.exec(url, execOptions);
+      // Use exec to pipe directly to response - same as regular video download
+      const childProcess = ytdlp.exec(url, {
+        format: format_id || 'best[height<=1080]/best',
+        output: '-' // Output to stdout
+      });
+      
       childProcess.stdout?.pipe(res);
       
       childProcess.on('close', (code) => {
@@ -494,32 +399,19 @@ router.post('/shorts', async (req, res) => {
       childProcess.stderr?.on('data', (data) => {
         console.log('📊 [YouTube SHORTS] Progress:', data.toString().trim());
       });
-    } catch (execError: any) {
-      console.error('❌ [YouTube SHORTS] Failed to start download:', execError.message);
+    } catch (execError) {
+      console.error('❌ [YouTube SHORTS] Failed to start download:', execError);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Failed to start Shorts download: ' + execError.message });
       }
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ [YouTube SHORTS] Error downloading Shorts:', error.message);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Failed to download Shorts: ' + error.message });
     }
   }
 });
-
-// Cleanup tmp dir on startup
-(() => {
-  const tempDir = path.join(process.cwd(), 'tmp_downloads');
-  if (fs.existsSync(tempDir)) {
-    try {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch (e) {
-      console.warn('⚠️ Could not clean tmp_downloads on startup');
-    }
-  }
-  fs.mkdirSync(tempDir, { recursive: true });
-})();
 
 export { router as YoutubeRoutes };
