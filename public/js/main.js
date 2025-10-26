@@ -111,34 +111,14 @@ async function makeAPIRequest(endpoint, data) {
             body: JSON.stringify(data)
         });
 
-        const contentType = response.headers.get('content-type') || '';
-
         if (!response.ok) {
-            let errorMsg = `HTTP error! status: ${response.status}`;
-            let errorDetails = null;
-            if (contentType.includes('application/json')) {
-                try {
-                    const errorData = await response.json();
-                    errorMsg = errorData.error || errorMsg;
-                    errorDetails = errorData.details || null;
-                } catch (_) {
-                    // ignore JSON parse error in error path
-                }
-            } else {
-                try {
-                    const text = await response.text();
-                    errorDetails = text.substring(0, 300);
-                } catch (_) {}
-            }
+            const errorData = await response.json();
+            const errorMsg = errorData.error || `HTTP error! status: ${response.status}`;
+            const errorDetails = errorData.details || null;
+            
+            // Create enhanced error with details
             const error = new Error(errorMsg);
             error.details = errorDetails;
-            throw error;
-        }
-
-        if (!contentType.includes('application/json')) {
-            const text = await response.text();
-            const error = new Error('Unexpected non-JSON response from server');
-            error.details = text.substring(0, 300);
             throw error;
         }
 
@@ -215,9 +195,6 @@ async function downloadFile(endpoint, data, filename = null, showProgressBar = t
 
 // YouTube functionality
 function initializeYouTubePage() {
-    window.__vdInit = window.__vdInit || {};
-    if (window.__vdInit.youtube) return;
-    window.__vdInit.youtube = true;
     currentPlatform = 'youtube';
     initializeTabs();
     
@@ -362,9 +339,6 @@ function initializeYouTubePage() {
 
 // Instagram functionality
 function initializeInstagramPage() {
-    window.__vdInit = window.__vdInit || {};
-    if (window.__vdInit.instagram) return;
-    window.__vdInit.instagram = true;
     currentPlatform = 'instagram';
     initializeTabs();
     
@@ -480,26 +454,9 @@ function initializeInstagramPage() {
         });
     }
     
-    // Profile Photo + Profile Info
+    // Profile Photo download - Direct download without info button (like Stories and Highlights)
     const profileForm = document.getElementById('instagram-profile-form');
-    const getProfileInfoBtn = document.getElementById('get-profile-info');
-
-    if (getProfileInfoBtn) {
-        getProfileInfoBtn.addEventListener('click', async () => {
-            const username = document.getElementById('profile-username').value;
-            if (!username) {
-                showError('Please enter an Instagram username or profile URL');
-                return;
-            }
-            try {
-                const info = await makeAPIRequest('/api/instagram/profile/info', { username });
-                displayProfileInfo(info, 'profile');
-            } catch (error) {
-                console.error('Error getting profile info:', error);
-            }
-        });
-    }
-
+    
     if (profileForm) {
         profileForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -523,9 +480,6 @@ function initializeInstagramPage() {
 
 // Facebook functionality
 function initializeFacebookPage() {
-    window.__vdInit = window.__vdInit || {};
-    if (window.__vdInit.facebook) return;
-    window.__vdInit.facebook = true;
     currentPlatform = 'facebook';
     initializeTabs();
     
@@ -576,9 +530,6 @@ function setupFacebookHandlers(type, endpoint, filename) {
 
 // TikTok functionality
 function initializeTikTokPage() {
-    window.__vdInit = window.__vdInit || {};
-    if (window.__vdInit.tiktok) return;
-    window.__vdInit.tiktok = true;
     currentPlatform = 'tiktok';
     initializeTabs();
     
@@ -673,38 +624,6 @@ function displayVideoInfo(info, type) {
     if (titleElement) titleElement.textContent = info.title || `${currentPlatform} Content`;
     if (uploaderElement) uploaderElement.textContent = `By: ${info.uploader || 'Unknown'}`;
     if (durationElement) durationElement.textContent = `Duration: ${formatDuration(info.duration)}`;
-    
-    // Inject or update thumbnail if available
-    const infoContainerEl = document.getElementById(`${type}-info`);
-    const infoCard = infoContainerEl ? infoContainerEl.querySelector('.info-card') : null;
-    let thumbUrl = info.thumbnail;
-    if (!thumbUrl && Array.isArray(info.thumbnails) && info.thumbnails.length) {
-        // Pick the highest resolution available
-        const best = [...info.thumbnails].sort((a, b) => (b.height || 0) - (a.height || 0))[0];
-        thumbUrl = best?.url || best;
-    }
-    if (infoCard && (thumbUrl || document.getElementById(`${type}-thumbnail`))) {
-        let img = document.getElementById(`${type}-thumbnail`);
-        if (!img) {
-            img = document.createElement('img');
-            img.id = `${type}-thumbnail`;
-            img.alt = info.title || `${currentPlatform} thumbnail`;
-            img.style.maxWidth = '100%';
-            img.style.borderRadius = '8px';
-            img.style.margin = '10px 0';
-            if (titleElement && titleElement.parentElement === infoCard) {
-                infoCard.insertBefore(img, titleElement);
-            } else {
-                infoCard.insertBefore(img, infoCard.firstChild);
-            }
-        }
-        if (thumbUrl) {
-            img.src = thumbUrl;
-            img.style.display = '';
-        } else {
-            img.style.display = 'none';
-        }
-    }
     
     // Update format dropdown with actual available formats
     const formatSelect = document.getElementById(`${type}-format`);
@@ -899,47 +818,20 @@ function displayProfileInfo(info, type) {
     const titleElement = document.getElementById(`${type}-title`);
     const usernameElement = document.getElementById(`${type}-username-display`);
     const followerCountElement = document.getElementById(`${type}-follower-count`);
-    const followingCountElement = document.getElementById(`${type}-following-count`);
-    const postsCountElement = document.getElementById(`${type}-posts-count`);
     const previewElement = document.getElementById(`${type}-preview`);
     const infoContainer = document.getElementById(`${type}-info`);
-    const bioElement = document.getElementById(`${type}-bio`);
-    const externalUrlElement = document.getElementById(`${type}-external-url`);
-
-    if (titleElement) titleElement.textContent = info.full_name || 'Profile';
-    if (usernameElement) usernameElement.textContent = `Username: ${info.username || 'Unknown'}`;
-
-    if (followerCountElement) {
-        const followers = info.followers || info.subscriber_count;
-        followerCountElement.textContent = followers != null ? `Followers: ${formatNumber(followers)}` : '';
+    
+    if (titleElement) titleElement.textContent = info.title || 'Profile Photo';
+    if (usernameElement) usernameElement.textContent = `Username: ${info.uploader || 'Unknown'}`;
+    if (followerCountElement && info.subscriber_count) {
+        followerCountElement.textContent = `Followers: ${formatNumber(info.subscriber_count)}`;
     }
-    if (followingCountElement) {
-        const following = info.following;
-        followingCountElement.textContent = following != null ? `Following: ${formatNumber(following)}` : '';
-    }
-    if (postsCountElement) {
-        const posts = info.posts;
-        postsCountElement.textContent = posts != null ? `Posts: ${formatNumber(posts)}` : '';
-    }
-
-    if (bioElement) {
-        bioElement.textContent = info.biography || '';
-    }
-
-    if (externalUrlElement) {
-        if (info.external_url) {
-            externalUrlElement.innerHTML = `🔗 <a href="${info.external_url}" target="_blank" rel="noopener">${info.external_url}</a>`;
-        } else {
-            externalUrlElement.innerHTML = '';
-        }
-    }
-
+    
     // Show profile preview if thumbnail is available
-    if (previewElement && (info.thumbnail || info.profile_pic_url_hd || info.profile_pic_url)) {
-        const src = info.thumbnail || info.profile_pic_url_hd || info.profile_pic_url;
-        previewElement.innerHTML = `<img src="${src}" alt="Profile preview" style="max-width: 150px; border-radius: 50%; margin: 10px 0;">`;
+    if (previewElement && info.thumbnail) {
+        previewElement.innerHTML = `<img src="${info.thumbnail}" alt="Profile preview" style="max-width: 150px; border-radius: 50%; margin: 10px 0;">`;
     }
-
+    
     if (infoContainer) {
         infoContainer.classList.remove('hidden');
     }
